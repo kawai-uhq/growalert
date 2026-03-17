@@ -1,13 +1,16 @@
 // api/stats.js — Vercel serverless proxy
-// Fetches from your HTTP bot and returns it over HTTPS to the browser
+// Set BOT_STATS_URL in your Vercel environment variables
+// e.g. BOT_STATS_URL = http://node24.lunes.host:3203
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate'); // cache 5 min on Vercel edge
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
+
+  const botUrl = process.env.BOT_STATS_URL || 'http://node24.lunes.host:3203';
 
   try {
-    const response = await fetch('http://node24.lunes.host:3203/stats', {
-      signal: AbortSignal.timeout(8000)
+    const response = await fetch(`${botUrl}/stats`, {
+      signal: AbortSignal.timeout(10000)
     });
 
     if (!response.ok) throw new Error(`Bot returned HTTP ${response.status}`);
@@ -15,7 +18,11 @@ export default async function handler(req, res) {
     const data = await response.json();
     res.status(200).json(data);
   } catch (err) {
-    console.error('[Vercel proxy] Error:', err.message);
-    res.status(502).json({ error: 'Bot unreachable', detail: err.message });
+    console.error('[Vercel proxy] Error reaching bot at', botUrl, '-', err.message);
+    res.status(502).json({
+      error: 'Bot unreachable',
+      url: botUrl,
+      detail: err.message
+    });
   }
 }
